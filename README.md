@@ -8,7 +8,7 @@
 | ------ | ------ | ------ |
 | Задание 1 | * | 60 |
 | Задание 2 | * | 20 |
-| Задание 3 | # | 20 | // СДЕЛАЮ НА СЛЕД. ДЕНЬ (мало ли...)
+| Задание 3 | * | 20 |
 
 знак "*" - задание выполнено; знак "#" - задание не выполнено;
 
@@ -157,71 +157,48 @@ ____
 ### Ответы на вопросы
 - **Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.**
 
-- Перечисленные в этом туториале действия могут быть выполнены запуском на исполнение скрипт-файла, доступного [в репозитории](https://github.com/Den1sovDm1triy/hfss-scripting/blob/main/ScreatingSphereInAEDT.py).
-- Для запуска скрипт-файла откройте Ansys Electronics Desktop. Перейдите во вкладку [Automation] - [Run Script] - [Выберите файл с именем ScreatingSphereInAEDT.py из репозитория].
-
+#### Ответ: 
+### `Величина loss может стремиться к нулю, при условии того, что первоначально использовалась линейная функция, для задания точек`
 ```py
-
-import ScriptEnv
-ScriptEnv.Initialize("Ansoft.ElectronicsDesktop")
-oDesktop.RestoreWindow()
-oProject = oDesktop.NewProject()
-oProject.Rename("C:/Users/denisov.dv/Documents/Ansoft/SphereDIffraction.aedt", True)
-oProject.InsertDesign("HFSS", "HFSSDesign1", "HFSS Terminal Network", "")
-oDesign = oProject.SetActiveDesign("HFSSDesign1")
-oEditor = oDesign.SetActiveEditor("3D Modeler")
-oEditor.CreateSphere(
-	[
-		"NAME:SphereParameters",
-		"XCenter:="		, "0mm",
-		"YCenter:="		, "0mm",
-		"ZCenter:="		, "0mm",
-		"Radius:="		, "1.0770329614269mm"
-	], 
-)
-
+# Изменяем исходные данные до начала итераций, как показано на скриншоте ниже
+y = x
+a = 1
+b = 0
 ```
+![Screenshot_23](https://user-images.githubusercontent.com/58142149/191307777-f6c1998f-ee79-4596-bad8-a6758d97076a.png)
+### `А также величина loss может стремиться к нулю, если значения 'x' и 'y' сами стремятся к нулю`
+```py
+# Изменяем исходные данные до начала итераций, как показано на скриншоте ниже
+x = x*10**(-10)
+y = y*10**(-10)
+a = 1
+b = 0
+```
+![Screenshot_24](https://user-images.githubusercontent.com/58142149/191308946-93597f80-4a73-4198-a86f-89ba2dba9824.png)
+### `В основном, в остальных случаях величина loss не будет стремится к нулю`
+
+____
 
 - **Какова роль параметра Lr? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ. В качестве эксперимента можете изменить значение параметра.**
 
-- Перечисленные в этом туториале действия могут быть выполнены запуском на исполнение скрипт-файла, доступного [в репозитории](https://github.com/Den1sovDm1triy/hfss-scripting/blob/main/ScreatingSphereInAEDT.py).
-- Для запуска скрипт-файла откройте Ansys Electronics Desktop. Перейдите во вкладку [Automation] - [Run Script] - [Выберите файл с именем ScreatingSphereInAEDT.py из репозитория].
+###Параметр `Lr` определяет точность выравнивания графика в каждой итерации. К примеру, если параметр будет, как в нашем случае,- довольно мал ( `Lr = 0.000001` ), то точность будет выше, хоть и на выравнивание графика потребуется куда больше времени. В случае, если параметр `Lr` будет велик, то значения `a` и `b` будут изменятся сильнее, и более грубо - ни о какой точности речи и быть не может.
 
-```py
+###`Lr = 0.000000000000001`
+![Screenshot_25](https://user-images.githubusercontent.com/58142149/191314650-d875799a-04a7-4397-bd3d-4280386e6095.png)
+###`Lr = 0.0000001` Но этого всё-равно мало, чтобы за `10` итераций "поднять" график 
+![Screenshot_26](https://user-images.githubusercontent.com/58142149/191314671-7f391c83-2bc2-4b1f-b7d9-21b9d6e60071.png)
+###`Lr = 0.0001` Тут чётко видно, что из-за большого значения `Lr` график успел подняться за `10` итераций. Я бы назвал это значение оптимальным, но в тоже время, если рассматривать данный вопрос в перспективе на будущее, то точность от такого значения не будет становиться значительно лучше, нежели с параметром имеющим более маленькое значение. 
+![Screenshot_27](https://user-images.githubusercontent.com/58142149/191314681-60b34d7a-d109-4be9-bd45-73cb568fe84e.png)
 
-import ScriptEnv
-ScriptEnv.Initialize("Ansoft.ElectronicsDesktop")
-oDesktop.RestoreWindow()
-oProject = oDesktop.NewProject()
-oProject.Rename("C:/Users/denisov.dv/Documents/Ansoft/SphereDIffraction.aedt", True)
-oProject.InsertDesign("HFSS", "HFSSDesign1", "HFSS Terminal Network", "")
-oDesign = oProject.SetActiveDesign("HFSSDesign1")
-oEditor = oDesign.SetActiveEditor("3D Modeler")
-oEditor.CreateSphere(
-	[
-		"NAME:SphereParameters",
-		"XCenter:="		, "0mm",
-		"YCenter:="		, "0mm",
-		"ZCenter:="		, "0mm",
-		"Radius:="		, "1.0770329614269mm"
-	], 
-)
+### О том, что при слишком великом значении `Lr` график вообще сломается, думаю, говорить не стоит :)
 
-```
+____
 
 ## Выводы
 
+- Были установлены и настроены такие ПО, как: Unity, Visual Studio Code, Anaconda + PyCharm 
+- Были написаны выводы строки "Hello World" в PyCharm, Unity, Jupyter Notebook (GoogleCollab)
+- Научился анализировать работу на примере реализации линейной регрессии
+- Получил опыт в написании ReadMe файликов :)
+
 P.s. Провтыкал с нумерацией заданий (ибо в методичке были ещё задания), но думаю ничего страшного, поскольку выполнено всё...
-
-| Plugin | README |
-| ------ | ------ |
-| Dropbox | [plugins/dropbox/README.md][PlDb] |
-| GitHub | [plugins/github/README.md][PlGh] |
-| Google Drive | [plugins/googledrive/README.md][PlGd] |
-| OneDrive | [plugins/onedrive/README.md][PlOd] |
-| Medium | [plugins/medium/README.md][PlMe] |
-| Google Analytics | [plugins/googleanalytics/README.md][PlGa] |
-
-## Powered by
-
-**BigDigital Team: Denisov | Fadeev | Panov**

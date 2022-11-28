@@ -36,253 +36,115 @@
 - ✨Magic ✨
 
 ## Цель работы
-Познакомиться с программными средствами для создания системы машинного обучения и ее интеграции в Unity.
+Интеграция экономической системы в проект Unity и обучение ML-Agent.
 
 ## Задание 1
-### Реализовать систему машинного обучения в связке Python - Google-Sheets – Unity. При выполнении задания можно использовать видеоматериалы и исходные данные, предоставленные преподавателями курса.
+### Измените параметры файла. yaml-агента и определите какие параметры и как влияют на обучение модели.
 
-- Создадал новый проект в Unity и подключил ML Agents и ML Agents Extensions через Package Manager.
+- Открыл проект в Unity и подключил _ML Agents_ и _ML Agents Extensions_ через Package Manager. С помощью _Anaconda Prompt_ активировал виртуальное пространство и запустил обучение агента.
 
-![image](assets/0.png)
+![image](images/1.png)
 
-- Далее запустил Anaconda Prompt и создал новую виртуальную среду для python 3.6.13. 
+- Далее установил в виртуальную среду _TensorFlow_ и открыл _TensorBoard_. 
 
-![image](assets/1.png)
+![image](images/2.png)
 
-- Активировал среду и подключил необходимые библиотеки:
-  - mlagents 0.28.0;
-  - torch 1.7.1;
+### Default
+
+- Параметры по умолчанию. ```Economic.yaml```:
   
-![image](assets/2.png)
-![image](assets/3.png)
+```yaml
 
-- В проекте Unity создал плоскость, сферу и куб.
-  
-![image](assets/4.png)
-
-- Подключил скрипт _"RollerAgent.cs"_ к сфере:
- 
-```csharp
-
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Unity.MLAgents;
-using Unity.MLAgents.Sensors;
-using Unity.MLAgents.Actuators;
-
-public class RollerAgent : Agent
-{
-    Rigidbody rBody;
-    // Start is called before the first frame update
-    void Start()
-    {
-        rBody = GetComponent<Rigidbody>();
-    }
-
-    public Transform Target;
-    public override void OnEpisodeBegin()
-    {
-        if (this.transform.localPosition.y < 0)
-        {
-            this.rBody.angularVelocity = Vector3.zero;
-            this.rBody.velocity = Vector3.zero;
-            this.transform.localPosition = new Vector3(0, 0.5f, 0);
-        }
-
-        Target.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4);
-    }
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        sensor.AddObservation(Target.localPosition);
-        sensor.AddObservation(this.transform.localPosition);
-        sensor.AddObservation(rBody.velocity.x);
-        sensor.AddObservation(rBody.velocity.z);
-    }
-    public float forceMultiplier = 10;
-    public override void OnActionReceived(ActionBuffers actionBuffers)
-    {
-        Vector3 controlSignal = Vector3.zero;
-        controlSignal.x = actionBuffers.ContinuousActions[0];
-        controlSignal.z = actionBuffers.ContinuousActions[1];
-        rBody.AddForce(controlSignal * forceMultiplier);
-
-        float distanceToTarget = Vector3.Distance(this.transform.localPosition, Target.localPosition);
-
-        if(distanceToTarget < 1.42f)
-        {
-            SetReward(1.0f);
-            EndEpisode();
-        }
-        else if (this.transform.localPosition.y < 0)
-        {
-            EndEpisode();
-        }
-    }
-}
-
+behaviors:
+  Economic:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 1024
+      buffer_size: 10240
+      learning_rate: 3.0e-4
+      learning_rate_schedule: linear
+      beta: 1.0e-2
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3      
+    network_settings:
+      normalize: false
+      hidden_units: 128
+      num_layers: 2
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+    checkpoint_interval: 500000
+    max_steps: 750000
+    time_horizon: 64
+    summary_freq: 5000
+    self_play:
+      save_steps: 20000
+      team_change: 100000
+      swap_steps: 10000
+      play_against_latest_model_ratio: 0.5
+      window: 10
+    
 ```
 
-- Также добавил и настроил компоненты _Rigidbody_, _Decision Requester_, _Behavior Parameters_.
-  
-![image](assets/5.png)
+- После обучения получил такой результат в _TensorBoard_. График ___Cumulative Reward___ возрастает монотонно вверх.
 
-- В корень проекта добавил файл конфигурации нейронной сети _"rollerball_config.yaml"_:
-  
-![image](assets/6.png)
+![image](images/3.png)
 
-- И наконец, запустил Ml Agent и проверил его работу: 
-  
-![image](assets/movie_1.gif)
+### Learning_rate 
 
-- Для ускорения обучения создал много копий модели _«Плоскость-Сфера-Куб»_.
-  
-![image](assets/movie_2.gif)
+- ```learning_rate``` отвечает за начальную скорость обучения для градиентного спуска. Соответствует силе обновления градиентного спуска на каждом шагу. Обычно это значение следует уменьшать, если обучение нестабильно, а вознаграждение не увеличивается постоянно. Попробовал увеличить его до ```1.0e-3``` и обучил модель:
 
-- После обучения модели, получил такой результат:
-  
-![image](assets/movie_3.gif)
+![image](images/4.png)
+
+- В _TensorBoard_ видно, что ___Cumulative Reward___ стал вести себя нестабильно. Вознаграждение стало возрастать гораздо медленнее, а потом вовсе начало уменьшаться. Уменьшил значение до ```learning_rate: 1.0e-5```. График стал чуть лучше, вознаграждение возрастает, хоть и не монотонно и довольно медленно:
+
+![image](images/5.png)
+
+### Beta
+
+- Обратил внимание на график ___Entropy___. В предыдущем "опыте" его значение оставалось константой. С этим значением связан параметр ```beta```. Это сила энтропийной регуляризации, которая делает политику  агента «более случайной». Это гарантирует, что агенты должным образом исследуют пространство действия во время обучения. Увеличение этого параметра обеспечит выполнение большего количества случайных действий. Параметр должен быть скорректирован таким образом, чтобы ___Entropy___  медленно уменьшалась вместе с увеличением вознаграждения. Если энтропия падает слишком медленно, нужно уменьшить ```beta```.
+
+![image](images/6.png)
+
+- Изменил значение параметра до ```beta: 1.0e-4```:
+
+![image](images/7.png)
+
+- В _TensorBoard_ вознаграждение за обучение достигло своего пика и перестало расти. При этом _Энтропия_ начала медленно уменьшаться:
+
+![image](images/8.png)
+
+### Epsilon: 
+
+- Вернул настройки по умолчанию и изменил следующий параметр. ```epsilon``` влияет на то, насколько быстро политика может развиваться во время обучения. Соответствует допустимому порогу расхождения между старой и новой политикой при обновлении градиентного спуска. Установка небольшого значения этого параметра приведет к более стабильным обновлениям, но также замедлит процесс обучения. Попробовал увеличить его до ```0.6```:
+
+![image](images/9.png)
+
+- Из графика видно, что на каждом шагу вознаграждение стабильно составляло константу. Попробовал изменить параметр до ```epsilon: 0.1```, тогда график вернулся в исходное состояние:
+
+![image](images/10.png)
+
+### Num_epoch 
+
+- Попробовал увеличить в два раза ```num_epoch```. Этот параметр  отвечает за количество проходов через буфер опыта при выполнении оптимизации градиентного спуска. График стал вести себя нестабильно, вознаграждение росло гораздо медленее:
+
+![image](images/11.png)
+
+### Lambd
+
+- В конце решил уменьшить ```lambd``` до ```0.8```. Параметр влияет на то, насколько агент полагается на свою текущую оценку стоимости при вычислении обновленной оценки стоимости. Низкие значения соответствуют большему полаганию на собственную оценку. Вознаграждение монотонно возрастало, пока не достигло своего максимального значения:
+
+![image](images/12.png)
+
 
 ## Задание 2
-### Подробно опишите каждую строку файла конфигурации нейронной сети, доступного в папке с файлами проекта по ссылке. Самостоятельно найдите информацию о компонентах Decision Requester, Behavior Parameters, добавленных на сфере.
+### Опишите результаты, выведенные в TensorBoard. 
 
 - ***Decision Requester*** - это компонент, который автоматически запрашивает решения для агента через регулярные промежутки времени. Без DecisionRequester реализация  агента должна вручную вызывать функцию RequestDecision().
 
 - ***Behavior Parameters*** - это компонент для настройки поведения и свойств агента. Во время выполнения он определяет поведение объекта в соответствии с настройками, указанными в редакторе.
-
-- ***rollerball_config.yaml***:
-
-```yaml
-
-behaviors:
-  RollerBall: # id агента
-    trainer_type: ppo # Тип тренировки, который будет использоваться (Обычно используется обучение с подкреплением PPO - Proximal Policy Optimization).
-    hyperparameters: # Гиперпараметры.
-      batch_size: 10 # Количество опытов в каждой итерации градиентного спуска. Этот парметр всегда должнен быть в несколько раз меньше, чем buffer_size.
-      buffer_size: 100 # Количество опытов, которые необходимо сделать перед обновлением поведения модели.
-      learning_rate: 3.0e-4 # Начальная скорость обучения.
-      beta: 5.0e-4 # "Сила регуляризации энтропии", которая делает поведение объекта более "рандомным". Это гарантирует, что агенты должным образом исследуют пространство во время обучения.
-      epsilon: 0.2 # Влияет на скорость изменения поведения во время обучения.
-      lambd: 0.99 # Параметр регуляризации, используемый при расчете обобщенной оценки преимущества (GAE - Generalized Advantage Estimate).
-      num_epoch: 3 # Количество проходов через буфер опыта при выполнении оптимизации градиентного спуска.
-      learning_rate_schedule: linear # Определяет, как скорость обучения изменяется с течением времени. При linear скорость обучения уменьшается линейно, достигая 0 на max_steps.
-    network_settings: # Настройки сети.
-      normalize: false # Применяется ли нормализация к входным данным.
-      hidden_units: 128 # Количество нейронов в скрытых слоях.
-      num_layers: 2 # Количество скрытых слоев.
-    reward_signals: # Настройка вознаграждения.
-      extrinsic: # Внешние награды.
-        gamma: 0.99 # Коэффициент поощерения.
-        strength: 1.0 # Коэффициент, на который умножается вознаграждение.
-    max_steps: 500000 # Общее количество шагов (т. е. собранных наблюдений и предпринятых действий), которые необходимо выполнить в среде (или во всех средах при параллельном использовании нескольких) перед завершением процесса обучения.
-    time_horizon: 64 # Сколько опыта необходимо собрать для каждого агента, прежде чем добавить его в буфер опыта. Когда этот предел достигается до конца эпизода, оценка значения используется для прогнозирования общего ожидаемого вознаграждения из текущего состояния агента.
-    summary_freq: 10000 # Количество опытов, которое необходимо сделать перед отображением статистики обучения. 
-    
-```
-
-## Задание 3
-### Доработайте сцену и обучите ML-Agent таким образом, чтобы шар перемещался между двумя кубами разного цвета. Кубы должны, как и в первом задании, случайно изменять координаты на плоскости.
-
-- Внес изменения в _"RollerAgent.cs"_ :
-
-```csharp
-
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Unity.MLAgents;
-using Unity.MLAgents.Sensors;
-using Unity.MLAgents.Actuators;
-
-public class RollerAgent : Agent
-{
-    Rigidbody rBody;
-    // Start is called before the first frame update
-    void Start()
-    {
-        rBody = GetComponent<Rigidbody>();
-    }
-
-    public Transform Target1;
-    public Transform Target2;
-    private bool target1IsReached;
-    private bool target2IsReached;
-
-    public override void OnEpisodeBegin()
-    {
-        if (this.transform.localPosition.y < 0)
-        {
-            this.rBody.angularVelocity = Vector3.zero;
-            this.rBody.velocity = Vector3.zero;
-            this.transform.localPosition = new Vector3(0, 0.5f, 0);
-        }
-        target1IsReached = false; // Достигла ли сфера первого куба
-        target2IsReached = false; // Достигла ли сфера второго куба
-
-        Target1.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4); // Координаты первого куба
-        Target2.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4); // Координаты второго куба
-        Target1.gameObject.SetActive(true); // "Активируем" первую цель 
-        Target2.gameObject.SetActive(true); // "Активируем" вторую цель 
-    }
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        sensor.AddObservation(Target1.localPosition);
-        sensor.AddObservation(Target2.localPosition);
-        sensor.AddObservation(this.transform.localPosition);
-        sensor.AddObservation(rBody.velocity.x);
-        sensor.AddObservation(rBody.velocity.z);
-        // Добавляем наблюдение за тем, достигла ли сфера целей
-        sensor.AddObservation(target1IsReached); 
-        sensor.AddObservation(target2IsReached);
-    }
-    public float forceMultiplier = 10;
-    public override void OnActionReceived(ActionBuffers actionBuffers)
-    {
-        Vector3 controlSignal = Vector3.zero;
-        controlSignal.x = actionBuffers.ContinuousActions[0];
-        controlSignal.z = actionBuffers.ContinuousActions[1];
-        rBody.AddForce(controlSignal * forceMultiplier);
-
-        float distanceToTarget1 = Vector3.Distance(this.transform.localPosition, Target1.localPosition); // Расстояние до первого куба
-        float distanceToTarget2 = Vector3.Distance(this.transform.localPosition, Target2.localPosition); // Расстояние до второго куба
-
-         // Проверка достижения первой цели
-        if(!target1IsReached && distanceToTarget1 < 1.42f)
-        {
-            target1IsReached = true;
-            Target1.gameObject.SetActive(false); // Убираем объект со сцены
-        }
-
-         // Проверка достижения второй цели
-        if(!target2IsReached && distanceToTarget2 < 1.42f)
-        {
-            target2IsReached = true;
-            Target2.gameObject.SetActive(false); // Убираем объект со сцены
-        }
-
-        // Если цели достигнуты, выдаем вознаграждение и заканчиваем эпизод
-        if(target1IsReached && target2IsReached) 
-        {
-            SetReward(1.0f);
-            EndEpisode();
-        }
-        else if (this.transform.localPosition.y < 0)
-        {
-            EndEpisode();
-        }
-    }
-}
-
-```
-
-- Начал обучение новой модели: 
-  
-![image](assets/movie_4.gif)
-
-- В итоге, получил такой результат:
-  
-![image](assets/movie_5.gif)
-
 
 ## Выводы
 
